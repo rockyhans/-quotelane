@@ -20,10 +20,6 @@ interface PartnerPayload {
   created_at: string;
 }
 
-/**
- * Sends the lead to the partner webhook with timeout and exactly 1 retry
- * Guarantees that the visitor flow is not blocked by slow or failing partner endpoints
- */
 export async function forwardLeadToPartner(leadId: number, payload: PartnerPayload) {
   const partnerUrl = process.env.PARTNER_WEBHOOK_URL;
 
@@ -32,7 +28,6 @@ export async function forwardLeadToPartner(leadId: number, payload: PartnerPaylo
     return { success: false, error: "PARTNER_WEBHOOK_URL not set" };
   }
 
-  // Double send guard: ensure we don't send the same lead twice
   if (db) {
     try {
       const existing = await db
@@ -70,7 +65,7 @@ export async function forwardLeadToPartner(leadId: number, payload: PartnerPaylo
       return {
         ok: response.ok,
         status: response.status,
-        body: text.slice(0, 1000), // Cap response body for db storage
+        body: text.slice(0, 1000),
       };
     } catch (err: unknown) {
       clearTimeout(timeoutId);
@@ -83,7 +78,6 @@ export async function forwardLeadToPartner(leadId: number, payload: PartnerPaylo
   let responseBody = "";
   let errorMessage = "";
 
-  // Attempt 1 with 3500ms timeout
   try {
     const res1 = await sendRequestWithTimeout(3500);
     statusCode = String(res1.status);
@@ -96,7 +90,6 @@ export async function forwardLeadToPartner(leadId: number, payload: PartnerPaylo
     errorMessage = (err1 as Error).message || "Attempt 1 failed";
     console.warn(`Partner forward attempt 1 failed for lead ${leadId}: ${errorMessage}. Retrying...`);
 
-    // Retry once if partner fails or times out (Attempt 2 with 4000ms timeout)
     try {
       const res2 = await sendRequestWithTimeout(4000);
       statusCode = String(res2.status);
@@ -105,7 +98,7 @@ export async function forwardLeadToPartner(leadId: number, payload: PartnerPaylo
       if (!res2.ok) {
         errorMessage = `Partner retry returned HTTP ${res2.status}`;
       } else {
-        errorMessage = ""; // Cleared on retry success
+        errorMessage = "";
       }
     } catch (err2: unknown) {
       errorMessage = (err2 as Error).message || "Attempt 2 (retry) failed";
@@ -113,7 +106,6 @@ export async function forwardLeadToPartner(leadId: number, payload: PartnerPaylo
     }
   }
 
-  // Update lead status in database
   if (db) {
     try {
       await db

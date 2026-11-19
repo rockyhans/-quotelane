@@ -4,9 +4,7 @@ import * as schema from "./schema";
 
 const connectionString = process.env.DATABASE_URL;
 
-// Re-use connection in serverless/Node environments
 declare global {
-  // eslint-disable-next-line no-var
   var _postgresClient: postgres.Sql | undefined;
 }
 
@@ -28,9 +26,6 @@ function getPostgresClient() {
 const client = getPostgresClient();
 export const db = client ? drizzle(client, { schema }) : null;
 
-/**
- * Migration helper to ensure table exists in Supabase/Postgres
- */
 export async function ensureDatabaseTables() {
   if (!client) {
     console.warn("DATABASE_URL not configured. Running in memory / preview mode.");

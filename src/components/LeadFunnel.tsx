@@ -37,7 +37,6 @@ interface FunnelProps {
   variant: "A" | "B";
 }
 
-// Popular car makes for quick selection
 const POPULAR_MAKES = [
   "Toyota",
   "Honda",
@@ -53,9 +52,6 @@ const POPULAR_MAKES = [
 ];
 
 export default function LeadFunnel({ variant }: FunnelProps) {
-  // Steps definitions
-  // Variant A: landing (ZIP) -> year -> make -> insured -> age -> contact -> thank_you
-  // Variant B: landing (ZIP) -> insured -> contact -> thank_you
   const stepsOrder = useMemo(() => {
     if (variant === "B") {
       return ["zip", "insured", "contact"];
@@ -84,7 +80,6 @@ export default function LeadFunnel({ variant }: FunnelProps) {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [customMakeInput, setCustomMakeInput] = useState(false);
 
-  // Initialize prepop & tracking from URL
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -99,11 +94,8 @@ export default function LeadFunnel({ variant }: FunnelProps) {
       ...initialValues,
     }));
 
-    // Requirement: Strip PII from address bar once read
     stripPiiFromAddressBar();
 
-    // Requirement 3: Skip answered steps.
-    // If every answer before contact is prefilled and valid, jump to contact.
     const stepsToCheck = stepsOrder.slice(0, stepsOrder.length - 1);
     const isStepAnswered = (step: string): boolean => {
       switch (step) {
@@ -124,7 +116,6 @@ export default function LeadFunnel({ variant }: FunnelProps) {
 
     let firstUnansweredIndex = stepsToCheck.findIndex((step) => !isStepAnswered(step));
     if (firstUnansweredIndex === -1) {
-      // All prior steps prefilled! Land straight on contact step
       setCurrentStepIndex(stepsOrder.indexOf("contact"));
     } else {
       setCurrentStepIndex(firstUnansweredIndex);
@@ -133,12 +124,10 @@ export default function LeadFunnel({ variant }: FunnelProps) {
 
   const currentStep = stepsOrder[currentStepIndex] || "zip";
 
-  // Navigation handlers
   const handleNext = () => {
     setErrors({});
     setSubmitError(null);
 
-    // Validate current step
     let stepError: string | null = null;
 
     if (currentStep === "zip") {
@@ -187,7 +176,6 @@ export default function LeadFunnel({ variant }: FunnelProps) {
     setErrors({});
     setSubmitError(null);
 
-    // Validate contact step
     const stepErrors: Record<string, string> = {};
     if (!validateName(formData.firstName)) {
       stepErrors.firstName = "Please enter your first name.";
@@ -257,7 +245,6 @@ export default function LeadFunnel({ variant }: FunnelProps) {
     }
   };
 
-  // Progress percentage
   const progressPercent = Math.round(
     ((currentStepIndex + 1) / stepsOrder.length) * 100
   );
@@ -309,13 +296,11 @@ export default function LeadFunnel({ variant }: FunnelProps) {
 
   return (
     <div className="w-full max-w-lg mx-auto bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden transition-all duration-300">
-      {/* Progress Bar & Header */}
       <div className="bg-gray-50/80 border-b border-gray-100 px-6 py-4">
         <div className="flex items-center justify-between text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
           <span>
             Step {currentStepIndex + 1} of {stepsOrder.length}
           </span>
-          <span className="text-blue-600 font-bold">{progressPercent}% Completed</span>
         </div>
         <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
           <div
@@ -326,7 +311,6 @@ export default function LeadFunnel({ variant }: FunnelProps) {
       </div>
 
       <div className="p-6 md:p-8">
-        {/* Back Button */}
         {currentStepIndex > 0 && (
           <button
             type="button"
@@ -337,13 +321,9 @@ export default function LeadFunnel({ variant }: FunnelProps) {
           </button>
         )}
 
-        {/* STEP 1: ZIP CODE */}
         {currentStep === "zip" && (
           <div className="space-y-6 animate-fade-in">
             <div>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 mb-3">
-                <MapPin className="w-3.5 h-3.5" /> Fast Location Match
-              </span>
               <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
                 Enter your ZIP Code
               </h2>
@@ -366,9 +346,8 @@ export default function LeadFunnel({ variant }: FunnelProps) {
                   const val = e.target.value.replace(/\D/g, "");
                   setFormData({ ...formData, zip: val });
                 }}
-                className={`w-full px-4 py-3.5 text-lg font-medium tracking-widest text-center border rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all ${
-                  errors.zip ? "border-red-500 bg-red-50/30" : "border-gray-200"
-                }`}
+                className={`w-full px-4 py-3.5 text-lg font-medium tracking-widest text-center border rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all ${errors.zip ? "border-red-500 bg-red-50/30" : "border-gray-200"
+                  }`}
                 autoFocus
               />
               {errors.zip && (
@@ -388,13 +367,10 @@ export default function LeadFunnel({ variant }: FunnelProps) {
           </div>
         )}
 
-        {/* STEP 2: VEHICLE YEAR (Variant A) */}
         {currentStep === "year" && (
           <div className="space-y-6 animate-fade-in">
             <div>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 mb-3">
-                <Calendar className="w-3.5 h-3.5" /> Vehicle Details
-              </span>
+
               <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
                 What year is your primary vehicle?
               </h2>
@@ -412,11 +388,10 @@ export default function LeadFunnel({ variant }: FunnelProps) {
                     setFormData({ ...formData, vehicleYear: String(yr) });
                     setCurrentStepIndex((prev) => prev + 1);
                   }}
-                  className={`py-3 px-3 text-base font-semibold rounded-xl border transition-all cursor-pointer ${
-                    formData.vehicleYear === String(yr)
-                      ? "border-blue-600 bg-blue-50 text-blue-700"
-                      : "border-gray-200 hover:border-blue-300 text-gray-800 bg-gray-50/50"
-                  }`}
+                  className={`py-3 px-3 text-base font-semibold rounded-xl border transition-all cursor-pointer ${formData.vehicleYear === String(yr)
+                    ? "border-blue-600 bg-blue-50 text-blue-700"
+                    : "border-gray-200 hover:border-blue-300 text-gray-800 bg-gray-50/50"
+                    }`}
                 >
                   {yr}
                 </button>
@@ -456,13 +431,10 @@ export default function LeadFunnel({ variant }: FunnelProps) {
           </div>
         )}
 
-        {/* STEP 3: VEHICLE MAKE (Variant A) */}
         {currentStep === "make" && (
           <div className="space-y-6 animate-fade-in">
             <div>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 mb-3">
-                <Car className="w-3.5 h-3.5" /> Vehicle Details
-              </span>
+
               <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
                 Select your vehicle make
               </h2>
@@ -485,11 +457,10 @@ export default function LeadFunnel({ variant }: FunnelProps) {
                         setCurrentStepIndex((prev) => prev + 1);
                       }
                     }}
-                    className={`py-3 px-3 text-sm font-semibold rounded-xl border transition-all text-center cursor-pointer ${
-                      formData.vehicleMake === m
-                        ? "border-blue-600 bg-blue-50 text-blue-700 shadow-sm"
-                        : "border-gray-200 hover:border-blue-300 text-gray-800 bg-gray-50/50"
-                    }`}
+                    className={`py-3 px-3 text-sm font-semibold rounded-xl border transition-all text-center cursor-pointer ${formData.vehicleMake === m
+                      ? "border-blue-600 bg-blue-50 text-blue-700 shadow-sm"
+                      : "border-gray-200 hover:border-blue-300 text-gray-800 bg-gray-50/50"
+                      }`}
                   >
                     {m}
                   </button>
@@ -535,13 +506,10 @@ export default function LeadFunnel({ variant }: FunnelProps) {
           </div>
         )}
 
-        {/* STEP: CURRENTLY INSURED (Both A & B) */}
         {currentStep === "insured" && (
           <div className="space-y-6 animate-fade-in">
             <div>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 mb-3">
-                <ShieldCheck className="w-3.5 h-3.5" /> Coverage Status
-              </span>
+
               <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
                 Are you currently insured?
               </h2>
@@ -557,11 +525,10 @@ export default function LeadFunnel({ variant }: FunnelProps) {
                   setFormData({ ...formData, insured: true });
                   setCurrentStepIndex((prev) => prev + 1);
                 }}
-                className={`py-6 px-4 rounded-2xl border-2 text-center transition-all cursor-pointer ${
-                  formData.insured === true
-                    ? "border-blue-600 bg-blue-50/70 text-blue-800 shadow-md"
-                    : "border-gray-200 hover:border-blue-300 text-gray-800 bg-gray-50/50"
-                }`}
+                className={`py-6 px-4 rounded-2xl border-2 text-center transition-all cursor-pointer ${formData.insured === true
+                  ? "border-blue-600 bg-blue-50/70 text-blue-800 shadow-md"
+                  : "border-gray-200 hover:border-blue-300 text-gray-800 bg-gray-50/50"
+                  }`}
               >
                 <span className="block text-xl font-bold mb-1">Yes</span>
                 <span className="text-xs text-gray-500">I have current auto insurance</span>
@@ -573,11 +540,10 @@ export default function LeadFunnel({ variant }: FunnelProps) {
                   setFormData({ ...formData, insured: false });
                   setCurrentStepIndex((prev) => prev + 1);
                 }}
-                className={`py-6 px-4 rounded-2xl border-2 text-center transition-all cursor-pointer ${
-                  formData.insured === false
-                    ? "border-blue-600 bg-blue-50/70 text-blue-800 shadow-md"
-                    : "border-gray-200 hover:border-blue-300 text-gray-800 bg-gray-50/50"
-                }`}
+                className={`py-6 px-4 rounded-2xl border-2 text-center transition-all cursor-pointer ${formData.insured === false
+                  ? "border-blue-600 bg-blue-50/70 text-blue-800 shadow-md"
+                  : "border-gray-200 hover:border-blue-300 text-gray-800 bg-gray-50/50"
+                  }`}
               >
                 <span className="block text-xl font-bold mb-1">No</span>
                 <span className="text-xs text-gray-500">Not insured at this time</span>
@@ -592,13 +558,10 @@ export default function LeadFunnel({ variant }: FunnelProps) {
           </div>
         )}
 
-        {/* STEP: AGE RANGE (Variant A) */}
         {currentStep === "age" && (
           <div className="space-y-6 animate-fade-in">
             <div>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 mb-3">
-                <User className="w-3.5 h-3.5" /> Driver Profile
-              </span>
+
               <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
                 Select your age range
               </h2>
@@ -616,11 +579,10 @@ export default function LeadFunnel({ variant }: FunnelProps) {
                     setFormData({ ...formData, ageRange: range });
                     setCurrentStepIndex((prev) => prev + 1);
                   }}
-                  className={`w-full py-3.5 px-5 rounded-xl border text-left font-semibold transition-all flex items-center justify-between cursor-pointer ${
-                    formData.ageRange === range
-                      ? "border-blue-600 bg-blue-50 text-blue-800 shadow-sm"
-                      : "border-gray-200 hover:border-blue-300 text-gray-800 bg-gray-50/40"
-                  }`}
+                  className={`w-full py-3.5 px-5 rounded-xl border text-left font-semibold transition-all flex items-center justify-between cursor-pointer ${formData.ageRange === range
+                    ? "border-blue-600 bg-blue-50 text-blue-800 shadow-sm"
+                    : "border-gray-200 hover:border-blue-300 text-gray-800 bg-gray-50/40"
+                    }`}
                 >
                   <span>{range} years old</span>
                   <ChevronRight className="w-4 h-4 text-gray-400" />
@@ -636,13 +598,10 @@ export default function LeadFunnel({ variant }: FunnelProps) {
           </div>
         )}
 
-        {/* FINAL STEP: CONTACT & MANDATORY CONSENT */}
         {currentStep === "contact" && (
           <form onSubmit={handleSubmitLead} className="space-y-5 animate-fade-in">
             <div>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 mb-3">
-                <Lock className="w-3.5 h-3.5" /> Final Step • Secure Quote
-              </span>
+
               <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
                 Where should we send your quotes?
               </h2>
@@ -662,9 +621,8 @@ export default function LeadFunnel({ variant }: FunnelProps) {
                   placeholder="John"
                   value={formData.firstName}
                   onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                  className={`w-full px-3.5 py-2.5 text-sm border rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none ${
-                    errors.firstName ? "border-red-500 bg-red-50/30" : "border-gray-200"
-                  }`}
+                  className={`w-full px-3.5 py-2.5 text-sm border rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none ${errors.firstName ? "border-red-500 bg-red-50/30" : "border-gray-200"
+                    }`}
                 />
                 {errors.firstName && <p className="text-xs text-red-600 mt-1">{errors.firstName}</p>}
               </div>
@@ -679,9 +637,8 @@ export default function LeadFunnel({ variant }: FunnelProps) {
                   placeholder="Doe"
                   value={formData.lastName}
                   onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                  className={`w-full px-3.5 py-2.5 text-sm border rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none ${
-                    errors.lastName ? "border-red-500 bg-red-50/30" : "border-gray-200"
-                  }`}
+                  className={`w-full px-3.5 py-2.5 text-sm border rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none ${errors.lastName ? "border-red-500 bg-red-50/30" : "border-gray-200"
+                    }`}
                 />
                 {errors.lastName && <p className="text-xs text-red-600 mt-1">{errors.lastName}</p>}
               </div>
@@ -698,9 +655,8 @@ export default function LeadFunnel({ variant }: FunnelProps) {
                   placeholder="john.doe@example.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className={`w-full pl-10 pr-4 py-2.5 text-sm border rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none ${
-                    errors.email ? "border-red-500 bg-red-50/30" : "border-gray-200"
-                  }`}
+                  className={`w-full pl-10 pr-4 py-2.5 text-sm border rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none ${errors.email ? "border-red-500 bg-red-50/30" : "border-gray-200"
+                    }`}
                 />
                 <Mail className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
               </div>
@@ -721,16 +677,14 @@ export default function LeadFunnel({ variant }: FunnelProps) {
                     const raw = e.target.value.replace(/\D/g, "");
                     setFormData({ ...formData, phone: raw });
                   }}
-                  className={`w-full pl-10 pr-4 py-2.5 text-sm border rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none ${
-                    errors.phone ? "border-red-500 bg-red-50/30" : "border-gray-200"
-                  }`}
+                  className={`w-full pl-10 pr-4 py-2.5 text-sm border rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none ${errors.phone ? "border-red-500 bg-red-50/30" : "border-gray-200"
+                    }`}
                 />
                 <Phone className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
               </div>
               {errors.phone && <p className="text-xs text-red-600 mt-1">{errors.phone}</p>}
             </div>
 
-            {/* MANDATORY CONSENT TEXT */}
             <div className="bg-gray-50 border border-gray-200/80 rounded-xl p-3.5 text-xs text-gray-600 leading-relaxed">
               <p>{MANDATORY_CONSENT_TEXT}</p>
             </div>
@@ -758,17 +712,6 @@ export default function LeadFunnel({ variant }: FunnelProps) {
             </button>
           </form>
         )}
-      </div>
-
-      {/* Trust Footer */}
-      <div className="bg-gray-50/60 border-t border-gray-100 py-3 px-6 text-center text-xs text-gray-400 flex items-center justify-center gap-4">
-        <span className="flex items-center gap-1">
-          <Lock className="w-3 h-3 text-emerald-600" /> 256-Bit SSL Encrypted
-        </span>
-        <span>•</span>
-        <span>No Obligation</span>
-        <span>•</span>
-        <span>Variant {variant}</span>
       </div>
     </div>
   );

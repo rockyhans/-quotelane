@@ -1,6 +1,3 @@
-// In-memory sliding window rate limiter
-// Keyed by IP address, resets every 60 seconds
-
 interface RateLimitRecord {
   count: number;
   resetAt: number;
@@ -8,14 +5,13 @@ interface RateLimitRecord {
 
 const rateLimitMap = new Map<string, RateLimitRecord>();
 
-const WINDOW_MS = 60 * 1000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 15; // 15 lead submissions per minute per IP
+const WINDOW_MS = 60 * 1000;
+const MAX_REQUESTS_PER_WINDOW = 15;
 
 export function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
   const now = Date.now();
   const record = rateLimitMap.get(ip);
 
-  // Clean old expired entries periodically
   if (rateLimitMap.size > 5000) {
     for (const [key, val] of rateLimitMap.entries()) {
       if (val.resetAt < now) rateLimitMap.delete(key);

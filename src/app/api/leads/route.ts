@@ -16,14 +16,12 @@ import { forwardLeadToPartner } from "@/lib/partner";
 import { and, gte, eq, or } from "drizzle-orm";
 
 export async function POST(request: NextRequest) {
-  // 1. Extract IP and User Agent strictly from the server request
   const forwardedFor = request.headers.get("x-forwarded-for");
   const ipAddress = forwardedFor
     ? forwardedFor.split(",")[0].trim()
     : request.headers.get("x-real-ip") || "127.0.0.1";
   const userAgent = request.headers.get("user-agent") || "unknown";
 
-  // 2. Rate limiting check per IP
   const rateLimit = checkRateLimit(ipAddress);
   if (!rateLimit.allowed) {
     return NextResponse.json(
@@ -32,7 +30,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 3. Parse JSON payload
   let body: any;
   try {
     body = await request.json();
@@ -57,7 +54,6 @@ export async function POST(request: NextRequest) {
     pageUrl = "",
   } = body;
 
-  // 4. Strict Server-side Validation
   const errors: Record<string, string> = {};
 
   const cleanZip = validateZip(zip);
@@ -75,7 +71,6 @@ export async function POST(request: NextRequest) {
   const cleanPhone = validatePhone(phone);
   if (!cleanPhone) errors.phone = "Please enter a valid 10-digit US phone number.";
 
-  // Additional validations for Variant A
   let cleanYear: string | null = null;
   let cleanMake: string | null = null;
   let cleanAge: string | null = null;
@@ -91,12 +86,10 @@ export async function POST(request: NextRequest) {
     if (!cleanAge) errors.ageRange = "Please select your age range.";
   }
 
-  // Insured boolean check (required on both A and B)
   if (insured === undefined || insured === null || typeof insured !== "boolean") {
     errors.insured = "Please indicate if you are currently insured.";
   }
 
-  // Consent validation
   if (!consentText || !consentText.includes("By clicking Get My Quotes")) {
     errors.consent = "Valid TCPA consent agreement is mandatory.";
   }
@@ -105,10 +98,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Validation failed", errors }, { status: 422 });
   }
 
-  // Ensure DB tables exist
   await ensureDatabaseTables();
 
-  // 5. Duplicate Check: same email or phone within 24 hours
   if (db) {
     try {
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -138,7 +129,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // 6. Save Lead and Consent Record
   let savedLeadId = Math.floor(Math.random() * 1000000);
 
   if (db) {
@@ -183,7 +173,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // 7. Send Lead to Partner Asynchronously (Requirement: Visitor gets thank-you page fast)
   const partnerPayload = {
     click_id: tracking.click_id,
     aff_id: tracking.aff_id,
@@ -202,7 +191,6 @@ export async function POST(request: NextRequest) {
     created_at: new Date().toISOString(),
   };
 
-  // Background dispatch without awaiting so customer response is immediate
   forwardLeadToPartner(savedLeadId, partnerPayload).catch((err) => {
     console.error("Background partner dispatch error:", err);
   });
