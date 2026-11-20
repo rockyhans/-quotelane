@@ -1,154 +1,399 @@
-# QuoteLane Auto Insurance Lead Funnel
+# QuoteLane – Auto Insurance Lead Generation Funnel
 
-A high-converting, resilient auto insurance lead generation funnel and backend engine built with **Next.js (App Router)**, **TypeScript**, **Tailwind CSS**, and **Drizzle ORM** (targeting **Supabase Postgres**).
+**Live Demo:** https://quotelane.onrender.com  
+**GitHub Repository:** https://github.com/rockyhans/-quotelane
+
+QuoteLane is a mobile-first auto insurance lead-generation application designed to capture, validate, and process insurance quote requests from affiliate traffic. It includes a multi-step quote experience, A/B testing, URL-based prepopulation, affiliate tracking, PostgreSQL lead storage, consent capture, and partner webhook integration.
+
+## Features
+
+- **Multi-Step Quote Form:** A streamlined, responsive quote journey with two form variants.
+- **A/B Testing:** Configurable traffic distribution between Variant A and Variant B.
+- **Sticky Variant Assignment:** Visitors retain their assigned variant through a cookie.
+- **URL Parameter Prepopulation:** Automatically fills supported form fields using URL query parameters.
+- **Affiliate Tracking:** Preserves click IDs, affiliate IDs, channels, and other attribution parameters.
+- **Macro Handling:** Detects and ignores unresolved affiliate macros and invalid prefill values.
+- **Server-Side Validation:** Validates ZIP codes, names, email addresses, phone numbers, vehicle information, and consent.
+- **Duplicate Lead Prevention:** Checks for submissions using the same email or phone number within 24 hours.
+- **Rate Limiting:** Protects the lead submission endpoint against excessive requests.
+- **Consent Capture:** Records consent wording, timestamp, IP address, and user-agent information.
+- **PostgreSQL Integration:** Stores lead information and partner delivery status.
+- **Partner Webhook Integration:** Forwards submitted leads to a configurable external endpoint.
+- **PII URL Cleanup:** Removes personal contact information from the browser address bar after prepopulation.
+
+## Technology Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 |
+| Language | TypeScript |
+| Frontend | React 19 |
+| Styling | Tailwind CSS 4 |
+| Icons | Lucide |
+| Database | PostgreSQL |
+| ORM | Drizzle ORM |
+| Database Provider | Supabase |
+| Deployment | Render |
+| Integration | REST API / JSON Webhook |
+
+## Project Architecture
+
+The application follows a simple full-stack architecture.
+
+1. **Frontend:** Displays the quote form, handles user interactions, and manages form state.
+2. **Middleware:** Handles A/B variant assignment, sticky cookies, and forced variant testing.
+3. **API Layer:** Validates submissions, checks duplicates, and applies rate limiting.
+4. **Database Layer:** Stores lead details, affiliate tracking information, and consent records.
+5. **Partner Integration:** Sends accepted lead information to the configured partner webhook.
+
+## A/B Testing
+
+QuoteLane supports two quote form variants.
+
+| Feature | Variant A | Variant B |
+|---|---|---|
+| ZIP Code | Yes | Yes |
+| Vehicle Year | Yes | No |
+| Vehicle Make | Yes | No |
+| Insurance Status | Yes | Yes |
+| Age Range | Yes | No |
+| Contact Information | Yes | Yes |
+
+The traffic distribution is controlled through the `SPLIT_PERCENT_B` environment variable.
+
+For example:
+
+- `0` – 100% Variant A
+- `50` – 50% Variant A and 50% Variant B
+- `100` – 100% Variant B
+
+The `ql_variant` cookie maintains visitor assignment. For testing, variants can also be forced through URL parameters:
+
+- `?variant=a`
+- `?variant=b`
+
+## Affiliate Tracking and URL Prepopulation
+
+QuoteLane supports affiliate tracking and prepopulation through URL query parameters.
+
+Example:
+
+```text
+https://quotelane.onrender.com/?click_id=12345&aff_id=partner01&channel=email&zip=90210&first_name=John&last_name=Doe&email=john@example.com&insured=yes&year=2022
+```
+
+Supported parameters include:
+
+| Parameter | Purpose |
+|---|---|
+| `click_id` | Affiliate click identifier |
+| `aff_id` | Affiliate identifier |
+| `channel` | Traffic source |
+| `zip` | ZIP code |
+| `first_name` / `fname` | First name |
+| `last_name` / `lname` | Last name |
+| `email` | Email address |
+| `phone` | Phone number |
+| `year` / `vehicle_year` | Vehicle year |
+| `make` / `vehicle_make` | Vehicle make |
+| `insured` | Current insurance status |
+| `age` / `age_range` | Age range |
+
+Invalid values and unresolved macros such as `{sub5}`, `%%email%%`, and `[EMAIL]` are ignored.
+
+Personal contact parameters are removed from the visible URL after they have been processed.
+
+## Lead Submission API
+
+### Endpoint
+
+```http
+POST /api/leads
+Content-Type: application/json
+```
+
+The API validates incoming submissions and checks for duplicate leads before storing them.
+
+### Validation and Protection
+
+- Validates required form fields.
+- Requires valid consent information.
+- Prevents duplicate email or phone submissions within 24 hours.
+- Applies IP-based rate limiting.
+- Stores affiliate tracking information.
+- Records consent and submission metadata.
+
+### Response Example
+
+Successful submission:
+
+```json
+{
+  "success": true,
+  "leadId": 123,
+  "message": "Lead received and processed successfully."
+}
+```
+
+Duplicate submission:
+
+```json
+{
+  "error": "A quote request with this email or phone number was already submitted within the last 24 hours.",
+  "code": "DUPLICATE_LEAD"
+}
+```
+
+## Database Design
+
+The application uses PostgreSQL with Drizzle ORM.
+
+The `leads` table stores:
+
+- Lead ID and A/B variant.
+- Affiliate click ID, affiliate ID, and channel.
+- ZIP code and vehicle information.
+- Name, email, and phone number.
+- Prefilled field information.
+- Consent wording and timestamp.
+- IP address and user-agent information.
+- Partner delivery status and response details.
+- Lead creation timestamp.
+
+## Partner Webhook Integration
+
+QuoteLane supports server-to-server lead forwarding through a configurable webhook URL.
+
+After a lead is successfully stored, the application initiates a JSON POST request to the configured partner endpoint.
+
+The payload includes:
+
+- Lead ID.
+- Affiliate tracking information.
+- Contact details.
+- ZIP code and vehicle information.
+- Insurance status.
+- A/B variant.
+- Submission timestamp.
+
+The current implementation uses request timeouts and a retry when the initial request throws an error or times out. Partner response details are stored in the database.
+
+For production-grade reliability, a persistent background job queue and atomic idempotency mechanism would be recommended.
 
 ---
 
-## Part 1: Build, Testing, Architecture & Decisions
+## Getting Started
 
-### 1. How to Run and Test Each Part
+### Prerequisites
 
-#### Prerequisites
-- Node.js 18+ (tested on Node v24)
+- Node.js 20+
 - npm
+- PostgreSQL database
+- Supabase account (recommended)
 
-#### Setup & Environment Configuration
-1. Clone this repository.
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Copy environment configuration:
-   ```bash
-   cp .env.example .env.local
-   ```
-4. Configure your `.env.local`:
-   - `DATABASE_URL`: Your Supabase Postgres connection string (e.g. Transaction Pooler or direct URI).
-   - `PARTNER_WEBHOOK_URL`: Your lead buyer endpoint. For local verification, obtain a free endpoint at [webhook.site](https://webhook.site).
-   - `SPLIT_PERCENT_B`: Percentage (0 to 100) of new visitors allocated to Variant B.
+### 1. Clone the Repository
 
-5. Start the development server:
-   ```bash
-   npm run dev
-   ```
-   Open `http://localhost:3000` in your browser.
+```bash
+git clone https://github.com/rockyhans/-quotelane.git
 
-#### Testing Scenarios
+cd -quotelane
+```
 
-- **Testing Variant A vs Variant B**:
-  - Force Variant A: `http://localhost:3000/?variant=a` (full multi-step flow: ZIP, vehicle year, make, insured, age, contact).
-  - Force Variant B: `http://localhost:3000/?variant=b` (shortened flow: ZIP, insured, contact).
-  - Stickiness test: Visit `http://localhost:3000`. Reload or revisit later without the query string; your assigned variant remains sticky via the `ql_variant` cookie.
-- **Testing Prepop (URL Prefilling) & Address Bar Sanitization**:
-  - Visit:
-    ```
-    http://localhost:3000/?click_id=test_123&aff_id=42&channel=email&zip=90210&first_name=Alex&email=alex%40example.com&phone=5551234567&insured=yes&year={sub5}
-    ```
-  - **Notice**:
-    1. Unreplaced macro `{sub5}` is cleanly ignored and dropped.
-    2. Since ZIP, insured, and contact are prefilled, the visitor lands directly on the contact step with editable fields.
-    3. PII (`first_name`, `email`, `phone`) is immediately stripped from the browser address bar via `window.history.replaceState`, preventing leakage in logs or referrers.
-    4. Tracking attributes (`click_id`, `aff_id`, `channel`) survive the entire lifecycle and are saved with the lead.
-- **Testing Server Validation & Duplicate Prevention**:
-  - Submit a lead with an email and phone.
-  - Attempt submitting the same lead again: HTTP 409 Conflict is returned ("A quote request with this email or phone number was already submitted within the last 24 hours").
-- **Testing Partner Webhook Forwarding**:
-  - Check your [webhook.site](https://webhook.site) URL. Upon submission, the JSON payload containing contact info, vehicle details, tracking params (`click_id`, `aff_id`, `channel`), and timestamps arrives.
-  - Delivery is asynchronous with timeouts (3.5s) and a single retry, ensuring the consumer immediately sees the thank-you screen without latency.
+### 2. Install Dependencies
+
+```bash
+npm install
+```
+
+### 3. Configure Environment Variables
+
+Create a `.env.local` file in the project root.
+
+```env
+DATABASE_URL="postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true"
+
+SPLIT_PERCENT_B="50"
+
+PARTNER_WEBHOOK_URL="https://webhook.site/YOUR-UNIQUE-TOKEN"
+
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+```
+
+Replace the placeholders with your actual Supabase database credentials and webhook URL.
+
+**Important:** Never commit your actual database password, webhook token, or other secrets to GitHub.
+
+For deployment, configure the environment variables in your hosting provider:
+
+```env
+NEXT_PUBLIC_APP_URL="https://quotelane.onrender.com"
+```
+
+### 4. Run the Development Server
+
+```bash
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:3000
+```
+
+### 5. Build for Production
+
+```bash
+npm run build
+```
+
+Start the production server:
+
+```bash
+npm run start
+```
+
+## Testing
+
+### Test A/B Variants
+
+```text
+http://localhost:3000/?variant=a
+http://localhost:3000/?variant=b
+```
+
+### Test URL Prepopulation
+
+```text
+http://localhost:3000/?click_id=test123&aff_id=affiliate01&channel=email&zip=90210&first_name=John&last_name=Doe&email=john@example.com&insured=yes&year=2022
+```
+
+### Test Partner Webhook
+
+1. Open https://webhook.site.
+2. Generate a unique webhook URL.
+3. Configure it as `PARTNER_WEBHOOK_URL`.
+4. Submit a quote request.
+5. Inspect the received JSON payload.
+
+### Test Duplicate Prevention
+
+1. Submit a valid quote request.
+2. Submit another request using the same email or phone number within 24 hours.
+3. Verify that the API returns HTTP `409`.
 
 ---
 
-### 2. Design Decisions & Trade-Offs
-
-- **Drizzle ORM vs. Heavy Engines (like Prisma)**:
-  - *Decision*: Adopted Drizzle ORM over Prisma.
-  - *Reasoning*: Prisma requires external Rust engine binaries that often fail in restricted environments, Windows PowerShell, or edge deployments. Drizzle is zero-binary, pure TypeScript, produces zero runtime overhead, and communicates with Supabase/Postgres natively.
-- **Asynchronous Partner Dispatch**:
-  - *Decision*: Leads are recorded and validated first in the database, returning an instant response to the client while partner delivery executes in the background.
-  - *Trade-off*: The customer never suffers from slow third-party partner response times. If the partner times out or fails twice, the failure reason is preserved in the database for batch reconciliation.
-- **Double-Submit & Idempotency Safeguards**:
-  - *Decision*: A submission lock and database check prevent duplicate partner dispatches on double clicks.
-- **Mobile-First Touch Target Design**:
-  - *Decision*: Large selection tiles (for vehicle years, popular makes, and insurance status) ensure high conversion on mobile devices where typing is friction-heavy.
-
----
-
-### 3. Prepop Sanitation & PII Leakage Protection
-
-- **Macro Rejection**: Unreplaced tracking macros such as `{sub5}`, `{aff_sub5}`, `[EMAIL]`, `%%email%%`, and `{replace_it}` are caught using regular expression pattern matching and discarded.
-- **Normalization**: URL-encoded values (`sam%40example.com`), spaced numbers (`+1 (555) 123-4567`), and padded inputs are decoded, trimmed, and formatted into clean 10-digit US phone numbers and valid emails.
-- **Browser History Sanitation**: As soon as the client reads URL query parameters into state, `window.history.replaceState` purges `first_name`, `email`, and `phone` from `window.location.search`. This prevents PII from leaking into:
-  - Browser history
-  - Subsequent third-party analytics tracking tags (e.g. Google Analytics / Meta Pixel)
-  - `Referer` request headers when clicking external links.
-- **Distinction Between Prefilled and Typed Data**: The `prefilled_fields` JSON column logs exactly which values came prefilled from the link versus those entered by the user.
-
----
-
-### 4. What Would Change Before Sending Real Traffic (Production Hardening)
-
-1. **Distributed Rate Limiting with Redis / Upstash**: Replace the in-memory sliding-window limiter with an Upstash Redis store so limits apply across distributed serverless edge regions.
-2. **Persistent Job Queue (e.g. BullMQ / QStash)**: Forwarding leads to partners through a durable message queue guarantees at-least-once delivery with exponential backoff and dead-letter queues.
-3. **Lookup APIs for VIN / Vehicle Data**: Integrate NHTSA or Edmunds APIs to validate exact Make/Model/Trim according to year.
-4. **Phone & Address Verification APIs**: Integrate services like Twilio Lookup or USPS Address API to check line type (wireless vs landline) and physical address validity before dispatching.
-5. **Enhanced Consent Auditing (Jornaya / TrustedForm)**: Include TCPA lead certificates (e.g., Jornaya LeadID or ActiveProspect TrustedForm tokens) to provide compliance proof.
-
----
-
-## Part 2: Short Written Answers
+# Part 2 – Written Assessment
 
 ### a. What is a click ID, and why does it need to survive the whole journey?
-A click ID is a unique pseudorandom token generated by an ad network or affiliate tracking system (e.g., Google `gclid`, Facebook `fbclid`, or affiliate network `click_id`) when a user clicks an ad. It must survive the entire funnel journey because when that visitor converts, the click ID is passed back to the partner or tracking platform in the conversion postback. Without it, the source cannot attribute which campaign, keyword, or affiliate generated the conversion, resulting in lost revenue attribution and unoptimized ad spend.
 
-### b. How a server-to-server postback lets us and the affiliate get credit step-by-step
-1. **Click & Capture**: A visitor clicks an affiliate link with affiliate tracking parameters (e.g. `aff_id=42&click_id=abc123`). We assign an internal transaction ID and store both with the lead.
-2. **Lead Dispatch**: We forward the lead along with our tracking ID to the buyer/partner via server-to-server API.
-3. **Downstream Sale**: The buyer closes the insurance policy days or weeks later in their CRM.
-4. **Partner Postback**: The buyer's server triggers an HTTP GET/POST webhook (postback) to our server containing our internal transaction ID and sale payout amount.
-5. **Affiliate Credit**: Our server looks up the original lead, matches `aff_id=42` and `click_id=abc123`, records the conversion, and automatically fires an outbound server-to-server postback to that affiliate network's postback URL crediting them for the commission.
+A click ID is a unique identifier associated with an affiliate or advertising click. It connects the original traffic source to the lead or conversion.
 
-### c. Difference between a server-to-server postback and a tracking pixel? When to use each?
-- **Tracking Pixel**: An image tag or JavaScript snippet loaded client-side in the user's browser (e.g., Meta Pixel). It relies on browser cookies and third-party context.
-  - *Use Case*: Immediate front-end actions like page views, add-to-cart, or retargeting audiences.
-  - *Weakness*: Vulnerable to ad blockers, browser tracking prevention (Safari ITP), and user cookie clearing.
-- **Server-to-Server (S2S) Postback**: A direct backend HTTP call between two servers transferring conversion data with a click ID.
-  - *Use Case*: Downstream sales, offline conversions, subscription rebills, financial transactions, and affiliate networks.
-  - *Advantage*: 100% immune to ad blockers, cookie policies, and browser closures.
+It needs to survive the entire form journey so that when a lead is submitted or converted, the system can identify which affiliate generated it. Without this identifier, accurate attribution and commission tracking become difficult.
 
-### d. An advertiser fires a test conversion but it doesn't show up in our tracker. What to check in order:
-1. **Server Logs & Ingress Webhook**: Check application access logs and reverse proxy logs (Vercel/Cloudflare) to see if the HTTP request actually reached our server or was blocked by firewall/WAF.
-2. **HTTP Response Status**: Check what HTTP status code our server returned to the advertiser (e.g., 200 OK vs 400 Bad Request, 404, or 422).
-3. **Payload Structure & Parameter Names**: Verify that the advertiser passed the expected query or JSON parameters (e.g., `click_id` vs `clickid` or `sub_id`).
-4. **Click ID Validity in Database**: Check whether the click ID provided by the advertiser exists in our database or if it was truncated, invalid, or expired.
-5. **Deduplication / Idempotency Filters**: Check if our tracker rejected the conversion because that transaction or click ID was already marked as converted.
-6. **Timezone & Reporting Delay**: Check if the reporting dashboard has an asynchronous ingestion delay or timezone filter discrepancy.
+### b. How does a server-to-server postback let us and the affiliate get credit?
 
-### e. Why does an affiliate's own click ID need to be stored separately from ours?
-An affiliate network assigns its own internal tracking token (the affiliate click ID) to correlate clicks with their own publishers and sub-affiliates. We also generate our own unique internal transaction/lead ID to index and track the lead within our database and partner dispatch pipelines. 
-Storing them separately prevents namespace collisions, enables bidirectional postbacks (allowing us to report back to the affiliate using their key while querying our internal records with our key), and supports integrations with multiple aggregators simultaneously.
+A server-to-server postback allows two backend systems to exchange conversion information directly.
+
+1. A visitor clicks an affiliate link containing a click ID.
+2. QuoteLane captures and stores the click ID.
+3. The lead is forwarded to the partner.
+4. When a conversion occurs, the partner sends a postback containing the relevant lead or transaction identifier.
+5. QuoteLane matches the conversion with its stored lead.
+6. QuoteLane can then notify the affiliate network using the original click ID.
+
+This allows both systems to track and attribute conversions without relying entirely on browser-based tracking.
+
+### c. What is the difference between a server-to-server postback and a tracking pixel? When would you use each?
+
+A tracking pixel is triggered from the visitor's browser, generally through an image request or JavaScript. It is useful for tracking page views and browser-based events.
+
+A server-to-server postback is an HTTP request sent directly between backend systems. It is more suitable for tracking lead submissions, purchases, and offline conversions.
+
+I would use pixels for browser analytics and server-to-server postbacks for reliable conversion communication between affiliate networks and partners.
+
+### d. An advertiser fires a test conversion but it does not appear in our tracker. What would you check, in order?
+
+1. Verify that the advertiser is sending the postback to the correct endpoint.
+2. Check the server logs to confirm whether the request was received.
+3. Verify the HTTP response status and request method.
+4. Check whether the click ID or transaction ID is present and correctly mapped.
+5. Validate parameter names and authentication details.
+6. Check database insertion errors and duplicate-conversion handling.
+7. Verify timezone settings and reporting delays.
+
+### e. Why should an affiliate's click ID be stored separately from ours?
+
+The affiliate's click ID belongs to the affiliate tracking system, whereas our internal lead ID identifies a record in our database.
+
+Both identifiers have different purposes. Storing them separately prevents conflicts and allows us to match our internal lead with the affiliate's original click when reporting conversions.
 
 ---
 
-## Part 3: Judgment Calls
+# Part 3 – Judgment Calls
 
-### f. Kill switch vs sticky: SPLIT_PERCENT_B is set to 0 (or 100). Should visitors keep their version or follow the new setting?
-- **Decision**: 
-  - When `SPLIT_PERCENT_B` is between `1` and `99`, visitor stickiness is strictly preserved (existing cookies retain their variant).
-  - When `SPLIT_PERCENT_B` is set to `0` or `100`, it acts as an **authoritative kill-switch or rollout winner**: our middleware overrides existing sticky cookies and routes **everyone** to the chosen variant.
-- **Why & Trade-off**: If an experiment concludes or Variant B exhibits a critical bug in production, preserving stickiness would leave affected returning users stuck on a broken or deprecated form. The trade-off is that in-flight A/B test purity is sacrificed during a hard reset, which is the correct business decision when stability or decisive rollouts are required.
+### f. Kill switch vs. sticky assignment: What happens when SPLIT_PERCENT_B is 0 or 100?
 
-### g. Testing on production: seeing Variant B without affecting anyone else or getting stuck on B
-- **Decision**: The middleware supports forced overrides using `?variant=b` (or `?variant=a`). When the forced query parameter is detected:
-  - The middleware routes the request directly to that variant for that single request.
-  - **Crucially, the middleware does NOT write or update the persistent `ql_variant` cookie when `?variant=` is present.**
-- **Why & Trade-off**: QA engineers, partners, and internal testers can inspect either variant in production without modifying their personal persistent cookies and without polluting the baseline split ratio for real visitors.
+For normal percentages between 1 and 99, visitors retain their assigned variant through the `ql_variant` cookie.
 
-### h. Missing config: traffic arrives with channel=sms, but there's no SMS-specific partner setup or ID configured
-- **Decision**: The lead is **not blocked or dropped**. The visitor completes the standard funnel, and the lead is saved to the database with `channel=sms` intact alongside all tracking parameters. The lead is routed to the default auto insurance partner endpoint or placed in an unassigned partner queue.
-- **Why & Trade-off**: The primary directive in performance marketing is never to throw away paid user intent. Traffic acquisition money was already spent. Preserving the lead in the database allows ad-ops and business development to monetize the lead via secondary distribution or backfills, while retaining granular channel reporting.
+When `SPLIT_PERCENT_B` is set to `0`, all visitors are served Variant A.
 
-### i. Two brands, one partner: launching a second brand with the same partner account and fixed tracking fields
-- **Decision**:
-  - **In our internal database**: We store `brand="BrandA"` vs `brand="BrandB"` in a dedicated column along with the respective landing domain and consent record.
-  - **In the partner's fixed fields**: If the partner only accepts a fixed set of tracking parameters (e.g. `aff_id` and `sub_id`), we use namespaced prefixes or composite identifiers (e.g. `aff_id="BRAND1_42"` vs `aff_id="BRAND2_42"`, or prefixing `channel` / `sub_id` with `b1_` and `b2_`). Alternatively, if a campaign/creative ID field is available, we map the brand ID there.
-- **Why & Trade-off**: We preserve end-to-end reporting transparency internally while remaining fully compliant with the partner's strict API schema.
+When it is set to `100`, all visitors are served Variant B.
+
+These values override existing assignments, making them useful as rollout kill switches when one variant needs to be disabled.
+
+### g. How can we test Variant B in production when it is set to 0% without affecting other visitors or leaving ourselves stuck on B?
+
+We can use the URL parameter:
+
+```text
+https://quotelane.onrender.com/?variant=b
+```
+
+This forces Variant B for the testing request without changing the normal sticky assignment cookie.
+
+After testing, removing the query parameter returns the visitor to the normal production assignment.
+
+### h. What happens when traffic arrives with channel=sms, but there is no SMS-specific partner setup or ID?
+
+The channel should still be preserved and stored with the lead.
+
+Even if there is no SMS-specific partner configuration, retaining `channel=sms` helps maintain attribution and reporting accuracy.
+
+In the current implementation, QuoteLane uses one configured partner webhook rather than separate channel-specific destinations. A future improvement would be configurable routing based on traffic source, with a fallback queue for unassigned leads.
+
+### i. How would you distinguish two brands that use the same partner and fixed tracking fields?
+
+I would introduce a separate internal brand identifier and store it with every lead.
+
+The brand identifier could be associated with the landing domain or campaign configuration.
+
+If the partner supports an additional tracking field, we could send a brand-specific value through that field while preserving the original affiliate click ID.
+
+This keeps internal reporting accurate without changing the meaning of existing tracking identifiers.
+
+---
+
+## Future Improvements
+
+- Persistent background job processing for partner delivery.
+- Exponential backoff and dead-letter handling.
+- Atomic idempotency for webhook requests.
+- Distributed rate limiting using Redis.
+- Automated unit and integration testing.
+- Improved analytics and A/B experiment reporting.
+- Brand-specific partner routing.
+- Monitoring, logging, and delivery failure alerts.
+- Database indexes and automated migrations.
+- Stronger privacy and data-retention controls.
+
+## Project Links
+
+- **Live Application:** https://quotelane.onrender.com
+- **GitHub Repository:** https://github.com/rockyhans/-quotelane
+- **Webhook Testing:** https://webhook.site
+
+---
+
+**Built with Next.js, TypeScript, PostgreSQL, and Drizzle ORM.**
